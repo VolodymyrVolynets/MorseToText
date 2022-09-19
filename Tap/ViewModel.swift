@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 class ViewModel: ObservableObject {
     
@@ -14,6 +15,21 @@ class ViewModel: ObservableObject {
     private var date = Date()
     private var timePress: Float = 0
     @Published private(set) var isPressed: Bool = false
+    var a = Set<AnyCancellable>()
+    
+    init() {
+        $morseText
+            .combineLatest($isPressed)
+            .debounce(for: 3, scheduler: DispatchQueue.main)
+            .sink { [weak self] (text, isPressed) in
+                guard let self = self else { return }
+                if !isPressed && !text.isEmpty {
+                    self.text = "\(self.text) \(MorseCode.decode(text: self.morseText))"
+                    self.morseText = ""
+                }
+            }
+            .store(in: &a)
+    }
     
     func pressBegin() {
         date = Date()
@@ -31,12 +47,6 @@ class ViewModel: ObservableObject {
             morseText = "\(morseText)-"
         } else {
             morseText = "\(morseText)."
-        }
-        Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { _ in
-            if -self.date.timeIntervalSinceNow >= 3, !self.isPressed {
-                self.text = "\(self.text) \(MorseCode.decode(text: self.morseText))"
-                self.morseText = ""
-            }
         }
     }
 }
